@@ -1,31 +1,22 @@
 #!/bin/bash
 #
-# Libellux: Up and Running
-# Greenbone Vulnerability Manager (GVM) 22.4 Installer
+# Libellux: Up and Running GVM Installer
+# Greenbone Vulnerability Manager (GVM) 22.4
 # Author: Fredrik Hilmersson <fredrik@libellux.com>
 # Credits: Scott Shinn <scott@atomicorp.com>
+#          Björn Ricks @Greenbone
 #
 # Description: GVM Installer
 # Website: https://libellux.com/openvas/
 # Support: https://ko-fi.com/libellux
 #
 
-# ERROR:  could not load library "/usr/lib/postgresql/14/lib/libpg-gvm.so": libgvm_base.so.22: cannot open shared object file: No such file or directory
-# md manage:WARNING:2024-02-06 22h25.15 utc:65149: sql_exec_internal: PQexec failed: ERROR:  relation "public.meta" does not exist
-
-set -uo pipefail
-
-export DEBIAN_FRONTEND=noninteractive
-
-if [[ $UID != 0 ]]; then
-    echo "Please run this installer with sudo:"
-    echo "sudo $0 $*"
-    exit 1
-fi
-
-installer_version="v1.0.0-dev"
-last_updated="2024-02-06"
-gvm_version="22.4"
+# Variable declaration
+INSTALLER_VERSION="1.0.0-beta"
+LAST_UPDATED="2024-02-12"
+GVM_VERSION="22.4"
+HTTP="http"
+PORT="9392"
 
 SUCC="\033[0;32m"
 ERR="\033[0;31m"
@@ -35,8 +26,30 @@ LINK="\033[0;34m"
 LBX="\033[0;35m"
 NC="\033[0m"
 
-# Function to detect Linux distribution and version
-detect_distro_version () {
+export DEBIAN_FRONTEND=noninteractive
+
+# Functions
+function show_help () {
+	echo
+	echo "Libellux: Up & Running GVM Installer $INSTALLER_VERSION"
+	echo "Usage: $0 --server <server_ip>"
+	echo "  example: $0 --server 10.0.0.1 --https"
+
+	echo
+	echo
+	echo "options:"
+	echo "	--server                   IP of server"
+	echo "	--https                    Use https for installation"
+	echo "	--version                  Show installer version"
+	echo
+    echo "Supported environments:"
+	echo
+	echo "	Ubuntu 22.04    (Jammy Jellyfish)"
+	echo "	Debian 12.5     (Bookworm)"
+	echo
+}
+
+function detect_distro_version () {
     os=$(uname)
     if [ "$os" == "Linux" ]; then
         if [ -f /etc/os-release ]; then
@@ -57,9 +70,7 @@ detect_distro_version () {
     fi
 }
 
-detect_distro_version
-
-curl_download () {
+function curl_download () {
     local url="$1"
     local output="$2"
     if curl -f -L -o "$output" "$url"; then
@@ -70,29 +81,72 @@ curl_download () {
     fi
 }
 
+if [[ $1 == -* ]]; then
+    while [ $# -gt 0 ]; do
+    	case "$1" in
+    		--server)
+    			shift
+    			SERVER_IP=$1
+    			;;
+    		--https)
+    			shift
+    			HTTP="https"
+                PORT="443"
+				;;
+    		--version|-v)
+    			echo $INSTALLER_VERSION
+    			exit
+    			;;
+    		--help|-h)
+    			show_help
+    			exit 0
+    			;;
+    		esac
+    		shift
+    done
+fi
+
+if [ ! ${SERVER_IP} ]; then
+    SERVER_IP=0.0.0.0
+fi
+
+if [[ $UID != 0 ]]; then
+    echo "Please run this installer with sudo:"
+    echo "sudo $0 $*"
+    exit 1
+fi
+
+detect_distro_version
+
 echo
-echo -e ' __________'
-echo -e '< Welcome! >'
-echo -e ' ----------'
-echo -e '      \'
-echo -e '       \  >o)'
-echo -e '          /\\'
-echo -e '         _\_V'
+echo -e " ___________________"
+echo -e "< Hi! I'm Libellux! >"
+echo -e " -------------------"
+echo -e "      \ "
+echo -e "       \  ${LBX}>o)${NC}"
+echo -e "          ${LBX}/\\ ${NC}"
+echo -e "         ${LBX}_\_V${NC}"
 echo
 echo
-echo -e "       =[ ${WARN}Libellux: Up & Running [GVM Installer $installer_version]${NC}"
-echo -e "+ -- --=[ Description: Greenbone Vulnerability Manager ($gvm_version) installer"
-echo -e "+ -- --=[ Usage: ${SUCC}sudo ./gvm-installer.sh --LISTEN=192.168.0.1 --SSL=true${NC}"
-echo -e "+ -- --=[ Default IP listen 127.0.0.1 and SSL set to false"
-echo -e "       =[ Last updated ${ACK}$((($(date +%s)-$(date +%s --date $last_updated))/(3600*24))) days ago${NC} ($last_updated)"
+echo -e "       =[ ${WARN}Libellux: Up & Running GVM Installer $INSTALLER_VERSION${NC}"
+echo -e "+ -- --=[ Description: Greenbone Vulnerability Manager ($GVM_VERSION) installer"
+echo -e "+ -- --=[ Usage: ${SUCC}./gvm-installer.sh --server 10.0.0.1 --https${NC}"
+echo -e "+ -- --=[ For more information run ${ACK}./gvm --help${NC}"
+echo -e "       =[ Last updated ${ACK}$((($(date +%s)-$(date +%s --date $LAST_UPDATED))/(3600*24))) days ago${NC} ($LAST_UPDATED)"
 echo
 echo -e "${WARN}Disclaimer:${NC} It is understood that this installer, and any configurations"
 echo -e "may contain errors and are provided for education purposes only."
 echo -e "The installer, and any configurations are provided "as is" without warranty"
 echo -e "of any kind, whether express, implied, statutory, or otherwise."
-echo -e "            For information about on how-to build GVM from source visit:"
+echo -e "          For information about on how-to build GVM from source visit:"
 echo -e "                ${LINK}https://libellux.com/openvas/${NC}"
 echo
+
+if [ $HTTP = "https" ]; then
+    echo -e "GVM installation is set to listening IP $SERVER_IP and with HTTPS support" 
+else
+    echo -e "GVM installation is set to listening IP $SERVER_IP and without HTTPS support"
+fi
 
 while true; do
 read -p "Do you want to proceed? (y/n) " yn
@@ -544,6 +598,23 @@ cp -rv $INSTALL_DIR/greenbone-feed-sync/* /
 # greenbone-feed-sync
 /usr/local/bin/greenbone-feed-sync
 
+if [ $HTTP = "https" ]; then
+    if [[ -f /var/lib/gvm/private/CA/clientkey.pem && -f /var/lib/gvm/CA/clientcert.pem ]]; then
+        while true; do
+        read -p "Existing certificates found. Do you want to overwrite current certificates? (y/n) " yn
+        case $yn in 
+            [yY] ) /usr/local/bin/gvm-manage-certs -af;
+                break;;
+            [nN] ) echo Using existing certificates...;
+                break;;
+            * ) echo invalid response;;
+        esac
+        done
+    else
+        /usr/local/bin/gvm-manage-certs -a
+    fi
+fi
+
 ## ospd-openvas systemd
 cat << EOF > $BUILD_DIR/ospd-openvas.service
 [Unit]
@@ -624,6 +695,32 @@ EOF
 cp $BUILD_DIR/gvmd.service /etc/systemd/system/
 
 ## GSAD systemd
+if [ $HTTP = "https" ]; then
+cat << EOF > $BUILD_DIR/gsad.service
+[Unit]
+Description=Greenbone Security Assistant daemon (gsad)
+Documentation=man:gsad(8) https://www.greenbone.net
+After=network.target gvmd.service
+Wants=gvmd.service
+
+[Service]
+Type=exec
+#User=gvm
+#Group=gvm
+RuntimeDirectory=gsad
+RuntimeDirectoryMode=2775
+PIDFile=/run/gsad/gsad.pid
+ExecStart=/usr/local/sbin/gsad --foreground --listen=$SERVER_IP --port=$PORT --rport=80 --ssl-private-key=/var/lib/gvm/private/CA/clientkey.pem --ssl-certificate=/var/lib/gvm/CA/clientcert.pem
+Restart=always
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
+Alias=greenbone-security-assistant.service
+EOF
+
+else
+
 cat << EOF > $BUILD_DIR/gsad.service
 [Unit]
 Description=Greenbone Security Assistant daemon (gsad)
@@ -638,7 +735,7 @@ Group=gvm
 RuntimeDirectory=gsad
 RuntimeDirectoryMode=2775
 PIDFile=/run/gsad/gsad.pid
-ExecStart=/usr/local/sbin/gsad --foreground --listen=127.0.0.1 --port=9392 --http-only
+ExecStart=/usr/local/sbin/gsad --foreground --listen=$SERVER_IP --port=9392 --http-only
 Restart=always
 TimeoutStopSec=10
 
@@ -646,6 +743,7 @@ TimeoutStopSec=10
 WantedBy=multi-user.target
 Alias=greenbone-security-assistant.service
 EOF
+fi
 
 cp $BUILD_DIR/gsad.service /etc/systemd/system/
 
@@ -660,24 +758,24 @@ systemctl enable ospd-openvas
 systemctl enable gvmd
 systemctl enable gsad
 
-# add if IP is set to different and/or if SSL is set to true to display correct login path
-# add a happy penguin that says complete instead
 echo
-echo -e ' ___________'
-echo -e '< Complete! >'
-echo -e ' -----------'
-echo -e '      \'
-echo -e '       \  >o)'
-echo -e '          /\\'
-echo -e '         _\_V'
+echo -e " ________________________"
+echo -e "< Installation complete! >"
+echo -e " ------------------------"
+echo -e "      \ "
+echo -e "       \  ${LBX}>o)${NC}"
+echo -e "          ${LBX}/\\ ${NC}"
+echo -e "         ${LBX}_\_V${NC}"
 echo
-echo -e "       =[ ${WARN}Libellux: Up & Running [GVM Installer $installer_version${NC}] ${SUCC}Complete!${NC}"
-echo -e "+ -- --=[ Log in to GSAD at ${LINK}http://localhost:9392${NC}"
+echo
+echo -e "       =[ ${WARN}Libellux: Up & Running GVM Installer $INSTALLER_VERSION${NC} ${SUCC}Complete!${NC}"
+echo -e "+ -- --=[ Log in to GSAD at ${LINK}$HTTP://$SERVER_IP:$PORT${NC}"
 echo -e "       =[ Support me at: ${LINK}https://ko-fi.com/libellux${NC}"
 echo
-echo -e "${WARN}Disclaimer:${NC} It is understood that this installer, and any configurations may contain errors"
-echo -e "            and are provided for education purposes only. The installer, and any configurations"
-echo -e "            are provided "as is" without warranty of any kind, whether express, implied, statutory, or otherwise."
-echo -e "            For information about on how-to build GVM from source visit:"
-echo -e "                 ${LINK}https://libellux.com/openvas/${NC}"
+echo -e "${WARN}Disclaimer:${NC} It is understood that this installer, and any configurations"
+echo -e "may contain errors and are provided for education purposes only."
+echo -e "The installer, and any configurations are provided "as is" without warranty"
+echo -e "of any kind, whether express, implied, statutory, or otherwise."
+echo -e "          For information about on how-to build GVM from source visit:"
+echo -e "                ${LINK}https://libellux.com/openvas/${NC}"
 echo
