@@ -4,7 +4,7 @@ Part of the Libellux: Up & Running project: [libellux.com](https://libellux.com/
 
 ## Supported environments
 * Ubuntu 22.04 (Jammy Jellyfish)
-* Debian 12.5 (Bookworm)
+* Work in progress: Debian 12.5 (Bookworm)
 
 ## Installation
 Usage `./gvm-installer.sh --server 10.0.0.1 --https`  
