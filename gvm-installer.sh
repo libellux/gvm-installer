@@ -581,7 +581,7 @@ if ! $(/usr/local/sbin/gvmd --get-users | grep -q ^admin) ; then
 	stty echo
 
 	/usr/local/sbin/gvmd  --create-user=${USERNAME}>/dev/null 2>&1
-	/usr/local/sbin/gvmd  --user=${USERNAME} --new-password='${PASSWORD}'
+	/usr/local/sbin/gvmd  --user=${USERNAME} --new-password="${PASSWORD}"
 	FEED_OWNER=$(/usr/local/sbin/gvmd --get-users --verbose | awk '/^admin / {print $2}')
 	if [[ $FEED_OWNER == "" ]]; then
 		echo "Error: Feed owner could not be found"
