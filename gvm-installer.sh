@@ -12,8 +12,8 @@
 #
 
 # Variable declaration
-INSTALLER_VERSION="1.0.0-beta"
-LAST_UPDATED="2024-02-12"
+INSTALLER_VERSION="1.0.0-beta.1"
+LAST_UPDATED="2024-02-13"
 GVM_VERSION="22.4"
 HTTP="http"
 PORT="9392"
@@ -50,22 +50,138 @@ function show_help () {
 }
 
 function detect_distro_version () {
-    os=$(uname)
-    if [ "$os" == "Linux" ]; then
-        if [ -f /etc/os-release ]; then
-            source /etc/os-release
-            distro=$ID
-            version=$VERSION_ID
-        elif [ -f /etc/lsb-release ]; then
-            source /etc/lsb-release
-            distro=$DISTRIB_ID
-            version=$DISTRIB_RELEASE
-        else
-            echo "Unable to detect distribution and version."
-            exit 1
-        fi
+    # Detect release/package type
+    PKG=rpm
+    if [ -f /etc/redhat-release ]; then
+            RELEASE=/etc/redhat-release
+    elif [ -f /etc/os-release ]; then
+            RELEASE=/etc/os-release
+    elif [ -f /etc/openvz-release ]; then
+            RELEASE=/etc/openvz-release
+    elif [ -f /etc/SuSE-release ]; then
+            RELEASE=/etc/SuSE-release
+    elif [ -f /etc/os-release ]; then
+            RELEASE=/etc/os-release
+    elif [ -f /etc/lsb-release ]; then
+            RELEASE=/etc/lsb-release
+    elif [ -f /etc/debian_version ]; then
+            RELEASE=/etc/debian_version
+    elif [ -f /etc/openvz-release ]; then
+            RELEASE=/etc/openvz-release
+    elif [ -f /etc/virtuozzo-release ]; then
+            RELEASE=/etc/virtuozzo-release
+    elif [[ $OSTYPE == "aix"* ]]; then
+        PKG=aix
     else
-        echo "This script is intended for Linux systems only."
+        echo "Error: unable to identify operating system"
+        exit 1
+    fi
+
+    if [[ $OSTYPE == "aix"* ]]; then
+        PKG=aix
+    elif egrep -q "(release 5)" $RELEASE ; then
+        DIST="el5"
+        DIR=centos/5
+    elif egrep -q "(release 6|release 2012)" $RELEASE ; then
+        DIST="el6"
+        DIR=centos/6
+    elif egrep -q "(release 7|release 2014)" $RELEASE ; then
+        DIST="el7"
+        DIR=centos/7
+    elif egrep -q "(release 8)" $RELEASE ; then
+        DIST="el8"
+        DIR=centos/8
+    elif egrep -q "(release 9)" $RELEASE ; then
+        DIST="el9"
+        DIR=centos/9
+    elif egrep -q "Red Hat Enterprise Linux.* 7" $RELEASE ; then
+        DIST="el7"
+        DIR=redhat/7
+    elif egrep -q "Red Hat Enterprise Linux.* 8" $RELEASE ; then
+        DIST="el8"
+        DIR=redhat/8
+    elif egrep -q "(Amazon Linux 2)" $RELEASE; then
+        DIST="amazon"
+        DIR=amazon/2
+    elif egrep -q "(Amazon Linux AMI|Amazon)" $RELEASE ; then
+        DIST="el6"
+        DIR=centos/6
+    elif egrep -q "wheezy" $RELEASE ; then
+        DIST="debian"
+        DIR="wheezy"
+        PKG=deb
+        ARCH=$(dpkg --print-architecture)
+    elif egrep -q "jessie" $RELEASE ; then
+        DIST="debian"
+        DIR="jessie"
+        PKG=deb
+        ARCH=$(dpkg --print-architecture)
+    elif egrep -q "stretch" $RELEASE ; then
+        DIST="debian"
+        DIR="stretch"
+        PKG=deb
+        ARCH=$(dpkg --print-architecture)
+    elif egrep -q "lucid" $RELEASE ; then
+        DIST="debian"
+        DIR="lucid"
+        PKG=deb
+        ARCH=$(dpkg --print-architecture)
+    elif egrep -q "precise" $RELEASE ; then
+        DIST="debian"
+        DIR="precise"
+        PKG=deb
+        ARCH=$(dpkg --print-architecture)
+    elif egrep -q "Raring Ringtail" $RELEASE ; then
+        DIST="debian"
+        DIR="raring"
+        PKG=deb
+        ARCH=$(dpkg --print-architecture)
+    elif egrep -q "Trusty Tahr" $RELEASE ; then
+        DIST="ubuntu"
+        DIR="trusty"
+        PKG=deb
+        ARCH=$(dpkg --print-architecture)
+    elif egrep -q "Xenial" $RELEASE ; then
+        DIST="ubuntu"
+        DIR="xenial"
+        PKG=deb
+        ARCH=$(dpkg --print-architecture)
+    elif egrep -q "Bionic" $RELEASE ; then
+        DIST="ubuntu"
+        DIR="bionic"
+        PKG=deb
+        ARCH=$(dpkg --print-architecture)
+    elif egrep -q "Focal Fossa" $RELEASE; then 
+        DIST="ubuntu"
+        DIR="focal"
+        PKG=deb
+        ARCH=$(dpkg --print-architecture)
+    elif egrep -q "Jammy Jellyfish" $RELEASE; then 
+        DIST="ubuntu"
+        DIR="jammy"
+        PKG=deb
+        ARCH=$(dpkg --print-architecture)
+    elif egrep -q "buster" $RELEASE ; then
+        DIST="debian"
+        DIR="buster"
+        PKG=deb
+        ARCH=$(dpkg --print-architecture)
+    elif egrep -q "bullseye" $RELEASE ; then
+        DIST="debian"
+        DIR="bullseye"
+        PKG=deb
+        ARCH=$(dpkg --print-architecture)
+    elif egrep -q "bookworm" $RELEASE ; then
+        DIST="debian"
+        DIR="bookworm"
+        PKG=deb
+        ARCH=$(dpkg --print-architecture)
+    elif egrep -q "openSUSE Leap" $RELEASE; then
+        DIST="suse15"
+        DIR="opensuse/15.1"
+        PKG=zypper
+    else
+        echo "Error: Unable to determine distribution type."
         exit 1
     fi
 }
@@ -90,7 +206,7 @@ if [[ $1 == -* ]]; then
     			;;
     		--https)
     			shift
-    			HTTP="https"
+                HTTP="https"
                 PORT="443"
 				;;
     		--version|-v)
@@ -115,8 +231,6 @@ if [[ $UID != 0 ]]; then
     echo "sudo $0 $*"
     exit 1
 fi
-
-detect_distro_version
 
 echo
 echo -e " ___________________"
@@ -158,6 +272,21 @@ case $yn in
 	* ) echo invalid response;;
 esac
 done
+
+detect_distro_version
+
+case $DIR in
+  "jammy")
+    PSQL="14"
+    ;;
+  "bookworm")
+    PSQL="15"
+    ;;
+  *)
+    echo "Unsupported distribution."
+    exit 1
+    ;;
+esac
 
 if ! id -u "gvm" >/dev/null 2>&1; then
     useradd -r -M -U -G sudo -s /usr/sbin/nologin gvm
@@ -211,7 +340,7 @@ nmap \
 bison \
 postgresql \
 postgresql-contrib \
-postgresql-server-dev-14 \
+postgresql-server-dev-${PSQL} \
 smbclient \
 fakeroot \
 sshpass \
@@ -270,8 +399,6 @@ export OPENVAS_SMB_VERSION=22.5.3
 export OPENVAS_SCANNER_VERSION=22.7.9
 export OSPD_OPENVAS_VERSION=22.6.2
 export NOTUS_VERSION=22.6.2
-
-export NODE_VERSION=node_16.x
 
 curl_download https://www.greenbone.net/GBCommunitySigningKey.asc /tmp/GBCommunitySigningKey.asc
 gpg --import /tmp/GBCommunitySigningKey.asc
@@ -535,7 +662,7 @@ else
   echo "gvm group already allowed to run the openvas-scanner application"
 fi
 
-systemctl start postgresql@14-main.service
+systemctl start postgresql@${PSQL}-main.service
 
 su - postgres -c "createuser -DRS gvm"
 su - postgres -c "createdb -O gvm gvmd"
@@ -545,9 +672,9 @@ su - postgres -c "psql gvmd -q --command='create extension \"uuid-ossp\";'"
 su - postgres -c "psql gvmd -q --command='create extension \"pgcrypto\";'"
 su - postgres -c "psql gvmd -q --command='create extension \"pg-gvm\";'"
     
-systemctl restart postgresql@14-main.service
+systemctl restart postgresql@${PSQL}-main.service
 
-ldconfig
+/sbin/ldconfig
 
 if ! $(/usr/local/sbin/gvmd --get-users | grep -q ^admin) ; then
 	echo 
